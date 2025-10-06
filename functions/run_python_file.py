@@ -16,7 +16,9 @@ def run_python_file(working_directory, file_path, args=[]):
         if not abs_target.endswith(".py"):
             return f'Error: "{file_path}" is not a Python file.'
 
-        command = ["python3", file_path, *args]
+        command = ["python3", file_path]
+        if args:
+            command.extend(args)
         proc = subprocess.run(command, cwd=abs_work, capture_output=True, timeout=30, text=True)
         out, err = proc.stdout, proc.stderr
         parts = [f"STDOUT:{out}", f"STDERR:{err}"]
