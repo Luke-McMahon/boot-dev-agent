@@ -86,7 +86,7 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    for _ in range(20):
+    while True:
         resp = client.models.generate_content(
             model="gemini-2.0-flash-001", 
             contents=messages,
@@ -102,10 +102,17 @@ def main():
 
 
         if resp.function_calls:
+            # Collect all function response parts
+            all_parts = []
             for fc in resp.function_calls:
                 print(f"- Calling function: {fc.name}")
                 tool_msg = call_function(fc, verbose)
-                messages.append(tool_msg)
+                # Extract the parts from each tool message
+                all_parts.extend(tool_msg.parts)
+            
+            # Create a single message with all function response parts
+            combined_tool_msg = types.Content(role="tool", parts=all_parts)
+            messages.append(combined_tool_msg)
             continue
 
         if resp.text:
