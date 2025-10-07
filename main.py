@@ -47,8 +47,6 @@ name_to_function = {
 def call_function(function_call_part, verbose=False):
     if verbose:
         print(f"Calling function: {function_call_part.name}({function_call_part.args})")
-    else:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
 
     function_name = function_call_part.name
     func = name_to_function.get(function_name)
@@ -88,43 +86,39 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    resp = client.models.generate_content(
-        model="gemini-2.0-flash-001", 
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], 
-            system_instruction=system_prompt
-        ),
-    )
+    for _ in range(20):
+        resp = client.models.generate_content(
+            model="gemini-2.0-flash-001", 
+            contents=messages,
+            config=types.GenerateContentConfig(
+                tools=[available_functions], 
+                system_instruction=system_prompt
+            ),
+        )
 
-    if verbose:
-        prompt_tokens = resp.usage_metadata.prompt_token_count
-        response_tokens = resp.usage_metadata.candidates_token_count
+        if resp.candidates:
+            for cand in resp.candidates:
+                messages.append(cand.content)
 
-        print(f"User prompt: {user_prompt}")
-        print(f"Prompt tokens: {prompt_tokens}")
-        print(f"Response tokens: {response_tokens}")
 
-    if resp.function_calls:
-        for function_call_part in resp.function_calls:
-            function_call_results = call_function(function_call_part, verbose)
-            resp_obj = function_call_results.parts[0].function_response.response
-            if resp_obj is None:
-                raise Exception(f"{function_call_part.name} failed")
+        if resp.function_calls:
+            for fc in resp.function_calls:
+                print(f"- Calling function: {fc.name}")
+                tool_msg = call_function(fc, verbose)
+                messages.append(tool_msg)
+            continue
 
+        if resp.text:
             if verbose:
-                print(resp_obj)
-            else: 
-                if "result" in resp_obj:
-                    print(f"-> {resp_obj['result']}")
-                elif "error" in resp_obj:
-                    print(f"-> {resp_obj['error']}")
-                else:
-                    raise Exception(f"Unexpected response shape from {function_call_part.name}: {resp_obj}")
+                prompt_tokens = resp.usage_metadata.prompt_token_count
+                response_tokens = resp.usage_metadata.candidates_token_count
 
-    else:
-        print(resp.text)
-
+                print(f"User prompt: {user_prompt}")
+                print(f"Prompt tokens: {prompt_tokens}")
+                print(f"Response tokens: {response_tokens}")
+            print("Final response:")
+            print(resp.text)
+            break
 
 if __name__ == "__main__":
     main()
